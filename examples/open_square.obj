@@ -1,0 +1,6 @@
+# Negative coordinates, area 6, bounds dimensions 2 x 3 x 0, no volume.
+v -3 -4 -2
+v -1 -4 -2
+v -1 -1 -2
+v -3 -1 -2
+f -4 -3 -2 -1
