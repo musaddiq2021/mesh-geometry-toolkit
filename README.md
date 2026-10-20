@@ -1,50 +1,135 @@
-﻿# Mesh Geometry Toolkit
+# Mesh Geometry Toolkit
 
-A C++20 command-line tool and library for inspecting and converting Wavefront OBJ meshes. It reports geometry and topology, and computes enclosed volume only for supported closed surfaces.
+A C++20 command-line tool for reading, validating, and analysing 3D meshes stored in Wavefront OBJ files.
+
+The toolkit implements computational geometry algorithms to calculate surface area, enclosed volume, and axis-aligned bounding boxes. It also supports polygon triangulation, mesh topology validation, and OBJ file conversion.
+
+The project explores practical C++ development, numerical precision, geometric algorithms, and defensive software engineering without relying on external geometry libraries.
 
 ## Features
 
-- Positions, positive/negative indices and common slash-separated OBJ face syntax.
-- Checked triangulation of planar strictly convex polygons, preserving winding.
-- Surface area, bounds, width/height/depth, counts and area-weighted normals.
-- Boundary/nonmanifold edge detection, vertex links, orientation and components.
-- Signed/enclosed volume with topology, intersection and work-budget checks.
-- Triangulated OBJ conversion with staged output and same-file protection.
-- Configurable input limits, source-line errors and automated regression tests.
+- **OBJ Parsing** — Reads vertex coordinates, face definitions, positive and negative indices, and common OBJ face formats.
+- **Polygon Triangulation** — Converts supported planar, strictly convex polygons into triangles while preserving face orientation.
+- **Surface Area** — Calculates the total surface area using vector cross products.
+- **Enclosed Volume** — Computes signed tetrahedral contributions for supported closed, consistently oriented meshes.
+- **Bounding Boxes** — Determines the minimum and maximum coordinates, width, height, and depth.
+- **Topology Validation** — Identifies open boundaries, non-manifold edges, inconsistent winding, and unsupported geometry.
+- **OBJ Conversion** — Exports triangulated OBJ geometry while protecting against accidental input-file replacement.
+- **Input Safety** — Validates malformed records, numerical values, indices, and resource limits.
 
-## Requirements
+## Technologies
 
-CMake 3.20+, a C++20 compiler and a compatible build tool. The core uses the C++ standard library and native file APIs; it needs no downloaded dependencies or internet access to build or run.
+| Component | Technology |
+|---|---|
+| Programming Language | C++20 |
+| Build System | CMake 3.20+ |
+| Compilers | GCC / MSVC configuration |
+| Testing | CTest and C++ unit tests |
+| File Format | Wavefront OBJ |
+| Development Environment | Windows, PowerShell |
+| Continuous Integration | GitHub Actions |
 
-Verified locally: 64-bit Windows, MinGW GCC 16.1.0 and CMake 3.31.6. GitHub Actions targets Ubuntu 24.04/GCC and Windows Server 2022/MSVC; those remote jobs have not run yet. Linux and MSVC compatibility remain unverified locally.
+The project uses the C++ standard library and does not require an external rendering engine or geometry-processing dependency.
 
-## Build
+Strict compiler warnings include:
 
-From the repository root, with CMake, MinGW GCC and mingw32-make on the build shell's PATH:
+```text
+-Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror
+```
+
+## Getting Started
+
+### Requirements
+
+- CMake 3.20 or newer
+- A C++20-compatible compiler
+- A compatible build tool, such as MinGW Make
+- Git (for cloning the repository)
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/musaddiq2021/mesh-geometry-toolkit.git
+cd mesh-geometry-toolkit
+```
+
+### Build on Windows
+
+For MinGW GCC and `mingw32-make`, open PowerShell in the repository directory:
+
+```powershell
+cmake -S . -B build/windows-release -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+
+cmake --build build/windows-release --parallel 2
+```
+
+The compiled application will be available at:
+
+```text
+build/windows-release/mesh-tool.exe
+```
+
+To build the Debug configuration:
 
 ```powershell
 cmake -S . -B build/windows-debug -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug
+
 cmake --build build/windows-debug --parallel 2
-ctest --test-dir build/windows-debug --output-on-failure --no-tests=error
-
-cmake -S . -B build/windows-release -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-cmake --build build/windows-release --parallel 2
-ctest --test-dir build/windows-release --output-on-failure --no-tests=error
 ```
 
-GCC/Clang targets use C++20, `-Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror`, and effective Release `-O2`. MSVC is configured with `/W4 /WX /permissive-`. Tests remain active in Release.
+### Build on Linux
 
-Portable CMake commands for Linux, pending platform verification:
+With a compatible C++20 toolchain:
 
-```sh
+```bash
 cmake -S . -B build/linux-release -DCMAKE_BUILD_TYPE=Release
+
 cmake --build build/linux-release --parallel 2
-ctest --test-dir build/linux-release --output-on-failure --no-tests=error
 ```
 
-For multi-configuration generators, use `cmake --build build --config Release` and `ctest --test-dir build -C Release`. The optional Windows verification script accepts existing tool paths and also checks isolated executable deployment; see [WALKTHROUGH.md](docs/WALKTHROUGH.md).
+Linux builds are configured through GitHub Actions; platform compatibility depends on the available compiler and environment.
 
 ## Usage
+
+The application provides two primary operations: inspecting and converting OBJ files.
+
+### Inspect a 3D Mesh
+
+```powershell
+.\build\windows-release\mesh-tool.exe inspect .\examples\cube.obj
+```
+
+The program reads the mesh, validates its geometry, and calculates its properties.
+
+For the included unit cube, the expected results are:
+
+| Property | Value |
+|---|---:|
+| Vertices | 8 |
+| Triangles | 12 |
+| Surface Area | 6 |
+| Enclosed Volume | 1 |
+| Bounding Dimensions | 1 × 1 × 1 |
+
+Surface area is expressed in squared coordinate units, while volume is expressed in cubed coordinate units.
+
+### Convert an OBJ File
+
+```powershell
+.\build\windows-release\mesh-tool.exe convert .\examples\cube.obj .\build\cube-triangulated.obj
+```
+
+This produces an OBJ file containing vertex positions and triangulated faces.
+
+The converted file can be inspected using:
+
+```powershell
+.\build\windows-release\mesh-tool.exe inspect .\build\cube-triangulated.obj
+```
+
+The conversion process preserves the supported geometry but does not retain all original OBJ metadata, such as materials, texture coordinates, and smoothing groups.
+
+### Available Commands
 
 ```text
 mesh-tool inspect INPUT.obj
@@ -53,59 +138,178 @@ mesh-tool --help
 mesh-tool --version
 ```
 
-`convert` intentionally replaces the specified output after complete staged writing. Input and output must be different files, including aliases. Texture coordinates, supplied normals, materials, groups and smoothing metadata are validated/ignored as documented, then discarded. Choose the output path carefully. No cross-platform atomicity or crash-durability guarantee is made.
+## How It Works
 
-Exit codes: `0` successful analysis/conversion, including a report with unavailable volume; `1` input, geometry or I/O error; `2` incorrect command syntax. Quote filenames containing spaces. The program passes paths to filesystem APIs, never a shell.
+### Mesh Representation
 
-## Example
+A 3D mesh consists of vertices, edges, and faces.
 
-```powershell
-.\build\windows-release\mesh-tool.exe inspect .\examples\cube.obj
-.\build\windows-release\mesh-tool.exe convert .\examples\cube.obj .\build\cube-triangles.obj
-```
+Vertices define positions in three-dimensional space. Faces reference these positions to construct the surface of an object.
 
-The unit cube has 8 positions and 12 triangles after its six quads are triangulated. Expected results: surface area **6**, enclosed volume **1**, dimensions **1 x 1 x 1**. Other samples include a unit-axis tetrahedron (volume `1/6`), a nonconvex L prism (area 14, volume 3), and an open square at negative coordinates (area 6, unavailable volume).
+The toolkit stores vertex positions and indexed triangles, allowing geometric calculations without repeatedly duplicating vertex data.
 
-## Tests
+### Surface Area
 
-Run CTest using the build commands above. The suite has 65 unit groups and six CTest entries, covering analytical geometry, precision, invalid input, topology, stream failures, limits and real-file conversion. The CLI checks also cover existing-output replacement, same-file/hard-link rejection and temporary-file cleanup after replacement failure.
-
-On Windows, `scripts/verify.ps1 -Clean` configures Debug and Release using installed tools, runs CTest with OS-only PATH, and checks a copied EXE without adjacent runtime DLLs. `build.ps1` is an independent direct-GCC fallback.
-
-ASan/UBSan could not link with the installed MinGW toolchain because their runtime libraries are absent. With a compiler that supplies them:
+Triangle area is calculated using the cross product of two vectors:
 
 ```text
-cmake -S . -B build/sanitize -DCMAKE_BUILD_TYPE=Debug -DMESH_SANITIZERS=address,undefined -DMESH_STATIC_MINGW_RUNTIME=OFF
-cmake --build build/sanitize
-ctest --test-dir build/sanitize --output-on-failure --no-tests=error
+Area = 0.5 × |(B − A) × (C − A)|
 ```
 
-No remote CI or sanitizer success is claimed. See [AUDIT.md](docs/AUDIT.md) for actual verification and residual risks.
+Where A, B, and C represent the triangle's vertices.
 
-## Implementation
+The total mesh surface area is the sum of the individual triangle areas.
 
-`Mesh` owns positions and zero-based triangle indices. Public geometry consumers validate before indexing. OBJ numeric parsing is locale-independent and requires finite, complete tokens. A face fan is emitted only after planarity and strict half-plane checks. Area uses half a cross-product magnitude; volume uses compensated signed tetrahedron contributions after eligibility checks.
+This method works for triangles in arbitrary 3D orientations.
 
-Undirected edge incidence, directed winding counts and vertex-link graphs distinguish boundaries, orientation errors and nonmanifold vertices. Isolated positions are included in bounds but do not affect surface volume. The CMake library target is `mesh::geometry`.
+### Enclosed Volume
 
-Read [MATHEMATICS.md](docs/MATHEMATICS.md) for formulas/tolerances, [DESIGN.md](docs/DESIGN.md) for architecture/contracts, and [WALKTHROUGH.md](docs/WALKTHROUGH.md) for build and code examples.
+The toolkit uses signed tetrahedral volume calculations:
 
-## Limits and supported geometry
+```text
+V = (1/6) × Σ dot(A, cross(B, C))
+```
 
-Defaults: 32 MiB of OBJ input, 64 KiB per line, 250,000 positions, 250,000 triangles, 250,000 combined texture/normal records and 256 corners per face. Library callers can pass `ObjReadLimits`. Volume checks permit at most 1,000,000 triangle pairs by default; a larger surface still has area/bounds but unavailable volume. These controls are not process-wide memory/time quotas.
+The algorithm accumulates signed contributions from the oriented surface triangles, using numerical techniques to reduce floating-point error.
 
-Concave, crossing, collinear-corner and nonplanar polygon records are unsupported. Nonconvex solids built from supported faces are allowed. Volume supports one closed, consistently oriented manifold surface; multiple shells, unexpected contacts and uncertain numeric cases are unavailable. Geometric predicates use floating-point tolerances rather than exact arithmetic.
+Enclosed volume is reported only when the mesh satisfies the supported topology and geometry requirements.
 
-Forward references, freeform geometry, OBJ line continuations and vertex-color extensions are unsupported. Degenerate/duplicate triangles and nonfinite coordinates are rejected. Empty meshes have area zero, no bounds and unavailable volume. Windows command-line paths outside the active code page remain unverified.
+Open meshes or unsupported configurations return an unavailable volume rather than an unreliable result.
 
-Conversion requires a caller-controlled destination directory; it is not a filesystem sandbox. See [SECURITY.md](SECURITY.md) for the untrusted-input and file-writing policy.
+### Topology Validation
 
-## Windows deployment
+The toolkit examines how triangles connect through shared edges.
 
-Default GNU MinGW executables statically link GCC, libstdc++ and POSIX threading runtimes using `-static -static-libgcc -static-libstdc++`. Copy the Release EXE to compatible 64-bit Windows with its system UCRT; no GCC installation or runtime DLL copies are needed. System Windows/UCRT dependencies remain. Other compiler runtime policies are unchanged.
+For a consistently oriented, closed manifold surface, each edge belongs to exactly two triangles that traverse the shared edge in opposite directions.
 
-`MESH_STATIC_MINGW_RUNTIME=OFF` opts out for specialized builds, including MinGW sanitizers; those builds must arrange their runtime dependencies separately. Explorer can launch this console program, but its window closes at exit; PowerShell retains the output.
+Validation identifies boundary edges, inconsistent face orientations, non-manifold configurations, and other unsupported geometric conditions.
+
+### Axis-Aligned Bounding Box
+
+The bounding box is calculated using the minimum and maximum vertex coordinates along each axis.
+
+```text
+Minimum = (minX, minY, minZ)
+Maximum = (maxX, maxY, maxZ)
+
+Dimensions = Maximum − Minimum
+```
+
+This produces a rectangular bounding box aligned with the coordinate axes.
+
+## Testing and Verification
+
+The project includes automated tests covering geometric calculations, OBJ parsing, numerical precision, topology validation, command-line behaviour, and file handling.
+
+Test cases include:
+
+- Cubes and tetrahedra with known mathematical results
+- Open and incorrectly oriented meshes
+- Nonconvex solids built from supported faces
+- Negative coordinates and translated geometry
+- Extreme-scale floating-point calculations
+- Invalid OBJ syntax and vertex indices
+- Degenerate and unsupported polygons
+- OBJ conversion and reinspection
+- Input resource limits and file-stream failures
+
+### Run Automated Tests
+
+On Windows:
+
+```powershell
+.\scripts\verify.ps1 -Clean
+```
+
+Alternatively, run CTest against an existing build:
+
+```powershell
+ctest --test-dir build/windows-release --output-on-failure --no-tests=error
+```
+
+### Local Verification Results
+
+| Check | Result |
+|---|---|
+| Automated Unit Test Groups | 65 passed |
+| CTest Entries | 6/6 per configuration |
+| Debug Build | Passed |
+| Release Build | Passed |
+| Strict Compiler Warnings | Passed |
+| GCC Static Analysis | No diagnostics reported |
+| Standalone Windows Executable | Verified locally |
+
+The results above reflect the local engineering audit. Sanitizer testing and additional compiler/platform combinations remain subject to toolchain availability and further verification.
+
+## Project Structure
+
+```text
+mesh-geometry-toolkit/
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+│
+├── include/
+│   └── mesh/
+│
+├── src/
+│
+├── tests/
+│
+├── examples/
+│
+├── scripts/
+│
+├── docs/
+│
+├── CMakeLists.txt
+├── build.ps1
+├── README.md
+├── SECURITY.md
+└── LICENSE
+```
+
+The architecture separates OBJ parsing, polygon triangulation, geometric calculations, validation, and command-line functionality.
+
+The geometry library is also exposed as the CMake target `mesh::geometry`.
+
+## Limitations
+
+The toolkit focuses on supported OBJ mesh analysis rather than general-purpose CAD modelling.
+
+Current limitations include:
+
+- Concave, crossing, and nonplanar polygon face records are not supported.
+- Enclosed-volume analysis is restricted to supported closed, consistently oriented manifold surfaces.
+- Multiple-shell geometry and some complex geometric intersections are unsupported.
+- Numerical decisions rely on floating-point tolerances rather than exact geometric predicates.
+- Resource limits restrict excessively large inputs and expensive intersection calculations.
+- OBJ conversion preserves supported geometry, not all original OBJ metadata.
+- Staged file output does not guarantee crash durability or filesystem atomicity.
+
+These constraints help distinguish reliable supported behaviour from geometry requiring more advanced algorithms.
+
+## Documentation
+
+Further technical information is available in the repository:
+
+- [Mathematics](docs/MATHEMATICS.md) — Vector operations, surface area, volume calculations, and numerical precision.
+- [Design](docs/DESIGN.md) — Software architecture and implementation decisions.
+- [Walkthrough](docs/WALKTHROUGH.md) — Code structure, build instructions, and execution flow.
+- [Audit](docs/AUDIT.md) — Engineering review, regression testing, and known limitations.
+- [Security](SECURITY.md) — Input validation, resource safety, and security considerations.
+
+## Project Motivation
+
+This project was developed to explore how mathematical algorithms can be implemented, validated, and tested in modern C++.
+
+Rather than relying on existing geometry-processing libraries, it focuses on understanding the underlying calculations and the practical engineering challenges involved in processing 3D data.
+
+The implementation brings together computational geometry, indexed data structures, floating-point arithmetic, file parsing, error handling, automated testing, and CMake-based build workflows.
+
+It serves as a practical exploration of C++20 and the relationship between mathematical correctness and reliable software implementation.
 
 ## License
 
-Licensed under the [MIT License](LICENSE). Copyright (c) 2026 Musaddiq Ali.
+Licensed under the [MIT License](https://github.com/musaddiq2021/mesh-geometry-toolkit/blob/main/LICENSE). Copyright (c) 2026 Musaddiq Ali.
